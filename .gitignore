@@ -1,0 +1,14 @@
+# emacs / vim swap files
+*~
+\#*
+.#*
+*.swp
+
+# binaries
+*.o
+btree
+trie
+rs-mount
+
+# log files
+*.log

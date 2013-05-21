@@ -1,0 +1,78 @@
+
+typedef enum { false = 0, true = 1 } bool;
+
+#define BPT_ORDER 4
+
+struct node {
+  int is_leaf : 1;
+
+  struct node* parent;
+  struct node* next;
+  struct node** branches[BPT_ORDER];
+  unsigned int  branches_size;
+  char* key;
+};
+
+struct node *root;
+
+
+
+struct node *_search(const char *key, struct node *node) {
+  if(node.is_leaf)
+    return node;
+
+  for(int i = 0; i < node->size; i++){
+    if(strcmp(key, node->branches[i]->key) <= 0){
+      return _search(key, node->branches[i]);
+    }
+  }
+  /*
+  perror("BTP searching last node in lack off earlier match, this might never ever happen")
+  return _search(k, node->branches[BPT_ORDER-1]); // this might never ever happen
+  */
+  return node;
+}
+
+struct node *search(const char *key) {
+  return _search(key, root);
+}
+
+void assign_value(struct node* node, char* value){
+  node->value = strdup(value);
+  node->is_leaf = true;
+}
+
+struct node* new_node(char *key, struct node* parent){
+  struct node* node = xmalloc(sizeof(node));
+  memcpy(node, 0, sizeof(node));
+  node->parent = parent;
+  node->key = strdup(key);
+  return node;
+}
+void insert(const char *key, const char *value) {
+  struct node* node = search(key);
+  if( strcmp(node->key,key) == 0 ){ // node with key already exists
+    assign_value(node, value);
+    return;
+  }
+  //node = node->parent;
+  if(node->size < BPT_ORDER){
+    
+    struct node* _node = new_node(key,node);
+    assign_value(_node, value);
+    
+    node->branches[node->size] = _node;
+    node->size++;
+  } else {
+    //split the bucket or follow up to the parent;
+  }
+}
+
+
+int main(int argc, char **argv) {
+  root = new_node("/", NULL);
+  insert("/foo/bar", "baz");
+  insert("/foo/blubb", "bla");
+  insert("/asdf/dassf/fdas", "blubb");
+  insert("/asdd/f/dsa/s", "fasd");
+}
