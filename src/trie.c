@@ -22,6 +22,10 @@ TrieNode *new_node(char key, void *value) {
   return node;
 }
 
+TrieNode *new_trie() {
+  return new_node(0, NULL);
+}
+
 void append(TrieNode *parent, TrieNode *child) {
   int len = strlen(parent->childkeys);
   parent->children = xrealloc(parent->children, (len + 1) * sizeof(TrieNode*));
@@ -41,7 +45,8 @@ TrieNode *find_child(TrieNode *node, char key) {
   return NULL;
 }
 
-void insert(TrieNode *parent, char *key, void *value) {
+void trie_insert(TrieNode *parent, const char *key, void *value) {
+  fprintf(stderr, "trie_insert(0x%x, %s, 0x%x)\n", parent, key, value);
   TrieNode *child;
   if(*key) {
     child = find_child(parent, *key);
@@ -49,19 +54,19 @@ void insert(TrieNode *parent, char *key, void *value) {
       child = new_node(*key, NULL);
       append(parent, child);
     }
-    insert(child, ++key, value);
+    trie_insert(child, ++key, value);
   } else {
     parent->value = value;
   }
 }
 
-void *search(TrieNode *parent, char *key) {
-  fprintf(stderr, "search(0x%x, %s)\n", parent, key);
+void *trie_search(TrieNode *parent, const char *key) {
+  fprintf(stderr, "trie_search(0x%x, %s)\n", parent, key);
   TrieNode *child;
   if(*key) {
     child = find_child(parent, *key);
     if(child) {
-      return search(child, ++key);
+      return trie_search(child, ++key);
     } else {
       return NULL;
     }
@@ -69,6 +74,8 @@ void *search(TrieNode *parent, char *key) {
     return parent->value;
   }
 }
+
+#ifdef DEBUG_TRIE
 
 void _dump_tree(TrieNode *node, int depth) {
   for(int d=0;d<depth;d++) {
@@ -88,7 +95,6 @@ void _dump_tree(TrieNode *node, int depth) {
   }
 }
 
-
 void dump_tree(TrieNode *root) {
   _dump_tree(root, 0);
 }
@@ -107,3 +113,5 @@ int main(int argc, char **argv) {
   fprintf(stderr, "RESULT: %s\n", result);
   return 0;
 }
+
+#endif

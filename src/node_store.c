@@ -1,10 +1,12 @@
 
 #include "remotestorage-fuse.h"
 
-struct rs_node *make_node(char *name) {
+struct rs_node *make_node(const char *path) {
   struct rs_node *node = xmalloc(sizeof(struct rs_node));
   memset(node, 0, sizeof(struct rs_node));
-  node->name = strdup(name);
+  char *tmp = strdup(path);
+  node->name = strdup(basename(tmp));
+  free(tmp);
   return node;
 }
 
@@ -13,14 +15,111 @@ size_t write_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
   off_t prev_size = node->size;
   node->size += size * nmemb;
   if(! node->data) {
-    node->data = xmalloc(node->size + 1);
+    node->data = xmalloc(node->size);
   } else {
-    node->data = xrealloc(node->data, node->size + 1);
+    node->data = xrealloc(node->data, node->size);
   }
   memcpy(node->data + prev_size, ptr, size * nmemb);
-  node->data[node->size] = 0;
   return size;
 }
+
+TrieNode *trie_root;
+
+void rs_init_cache() {
+  trie_root = new_trie();
+}
+
+char *strip_slash(const char *path) {
+  char *clean_path = path;
+  int len = strlen(path);
+  if(len == 1) {
+    return path;
+  }
+  if(path[len - 1] == '/') {
+    clean_path = strdup(path);
+    clean_path[len - 1] = 0;
+  }
+  return clean_path;
+}
+
+struct rs_node *rs_get_node(const char *path) {
+  char *clean_path = strip_slash(path);
+  struct rs_node *node = (struct rs_node*) trie_search(trie_root, clean_path);
+  if(path != clean_path) {
+    free(clean_path);
+  }
+  return node;
+}
+
+void rs_update_dir(const char *parent_path,  char *child_name, char* rev) {
+  fprintf(stderr, "rs_update_dir # parent_path : %s\tchild_name : %s\n", parent_path, child_name);
+  
+  struct rs_node *parent_node = rs_get_node(parent_path);
+  fprintf(stderr, "got parent node: 0x%x\n", parent_node);
+  struct rs_dir_entry *child_entry = xmalloc(sizeof(struct rs_dir_entry));
+  child_entry->name = child_name;
+  child_entry->rev = rev;
+  if(parent_node) {
+    child_entry->next = parent_node->data;
+  }
+  rs_set_node(parent_path, child_entry, sizeof(struct rs_dir_entry), rev, true);
+}
+
+void rs_set_node(const char *path, void *data, off_t size, char *rev, bool is_dir) {
+  char *clean_path = strip_slash(path);
+
+  fprintf(stderr, "rs_set_node # clean_path : %s, rev : %s\n", clean_path, rev);
+  struct rs_node *node = make_node(clean_path);
+  char *tmp = strdup(clean_path);
+  char *dname = strdup(dirname(tmp));
+  free(tmp);
+
+  node->size = size;
+  node->data = data;
+  node->rev = strdup(rev);
+  node->is_dir = is_dir;
+  trie_insert(trie_root, clean_path, (void*)node);
+
+
+  printf("NODE DATA %x\n", node->data);
+
+  fprintf(stderr, "dirname of %s is %s\n", clean_path, dname);
+
+  if(strcmp(dname, "/") != 0) {
+    // append trailing slash to dirname
+    int dnamelen = strlen(dname);
+    dname = realloc(dname, dnamelen + 2);
+    dname[dnamelen++] = '/';
+    dname[dnamelen] = 0;
+  }
+
+  log_msg("SET NODE %s", inspect_rs_node(node));
+
+  printf("NODE DATA %x\n", node->data);
+
+  if(strcmp(clean_path, "/") != 0) {
+    rs_update_dir(dname, node->name, rev);
+  }
+
+  if(clean_path != path) {
+    free(clean_path);
+  }
+}
+
+char *inspect_rs_node(struct rs_node *node) {
+  static char s[4096];
+  snprintf(s, sizeof(s),
+           "<Node \"%s\" is_dir=%d size=%d",
+           node->name, node->is_dir, node->size);
+  // work around snprintf bug that made it impossible
+  // to output anything but 0 in the above call, after writing
+  // size=%d (glibc 2.13)
+  int tmplen = strlen(s);
+  snprintf(s + tmplen, sizeof(s) - tmplen,
+           " data=0x%x>", node->data);
+  return s;
+}
+
 /*
 struct rs_node *rs_get_node(const char *path) {
   CURL *curl_handle = curl_easy_init();
@@ -62,75 +161,3 @@ struct rs_node *rs_get_node(const char *path) {
   return node;
 }
 */
-
-struct rs_node *cache_root;
-
-void rs_init_cache() {
-  cache_root = xmalloc(sizeof(struct rs_node));
-  cache_root->is_dir = true;
-}
-
-struct rs_node *find_child(struct rs_node *node, const char *name) {
-  log_msg("find_child(%s) from %s", name, node->name);
-  struct rs_node *child;
-  for(child = node->children; child != NULL; child = child->next) {
-    if(strcmp(child->name, name) == 0) {
-      return child;
-    }
-  }
-  return NULL;
-}
-
-void add_child(struct rs_node *parent, struct rs_node *child) {
-  struct rs_node *next = parent->children;
-  parent->children = child;
-  child->next = next;
-}
-
-struct rs_node *rs_get_node(const char *_path) {
-  char *tok_save = NULL;
-
-  char *path = strdup(_path);
-
-  struct rs_node *node = cache_root;
-
-  char *current;
-  for(current = strtok_r(path, "/", &tok_save);
-      current != NULL;
-      current = strtok_r(NULL, "/", &tok_save)) {
-    node = find_child(node, current);
-    if(! node) {
-      return NULL;
-    }
-  }
-
-  free(path);
-
-  return node;
-}
-
-void rs_set_node(const char *_path, char *data, off_t size) {
-  char *tok_save = NULL;
-
-  char *path = strdup(_path);
-
-  struct rs_node *node = cache_root, *prev = NULL;
-  char *current;
-  for(current = strtok_r(path, "/", &tok_save);
-      current != NULL;
-      current = strtok_r(NULL, "/", &tok_save)) {
-    prev = node;
-    node = find_child(prev, current);
-    if(! node) {
-      node = make_node(current);
-      add_child(prev, node);
-    }
-  }
-
-  node->data = xmalloc(size + 1);
-  node->size = size;
-  memcpy(node->data, data, size);
-  node->data[node->size] = 0;
-
-  free(path);
-}

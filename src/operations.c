@@ -16,7 +16,6 @@ int rs_getattr(const char *path, struct stat *stbuf)
       stbuf->st_nlink = 1;
       stbuf->st_size = node->size;
     }
-    free(node);
     return 0;
   } else {
     return -ENOENT;
@@ -28,15 +27,15 @@ int rs_truncate(const char *path, off_t length) {}
 int rs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
   struct rs_node *node = rs_get_node(path);
 
-  if(! node) {
+  if(node == NULL) {
     return -ENOENT;
   }
 
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
 
-  struct rs_node *entry;
-  for(entry = node->children; entry != NULL; entry = entry->next) {
+  struct rs_dir_entry *entry;
+  for(entry = (struct rs_dir_entry*)node->data; entry != NULL; entry = entry->next) {
     filler(buf, entry->name, NULL, 0);
   }
   return 0;

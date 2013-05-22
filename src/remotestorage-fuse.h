@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include <libgen.h>
 
 #include <curl/curl.h>
 
@@ -64,14 +65,18 @@ struct rs_config {
   char *auth_header;
 } RS_CONFIG;
 
+struct rs_dir_entry {
+  char *name;
+  char *rev;
+  struct rs_dir_entry *next;
+};
+
 struct rs_node {
   char *name;
   bool is_dir;
   off_t size;
   char *data;
   char *rev;
-  struct rs_node *children;
-  struct rs_node *next;
 };
 
 /* helpers */
@@ -84,6 +89,14 @@ void log_msg(char *format, ...);
 
 void rs_init_cache();
 struct rs_node *rs_get_node(const char *path);
-void rs_set_node(const char *path, char *data, off_t size);
+void rs_set_node(const char *path, void *data, off_t size, char *rev, bool is_dir);
+char *inspect_rs_node(struct rs_node *node);
+
+/* TRIE */
+
+typedef struct trie_node TrieNode;
+TrieNode *new_trie();
+void trie_insert(TrieNode *parent, const char *key, void *value);
+void *trie_search(TrieNode *parent, const char *key);
 
 #endif
