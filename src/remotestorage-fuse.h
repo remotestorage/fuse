@@ -105,6 +105,7 @@ void free_node(struct rs_node *node);
 /* remote operations */
 
 void init_remote();
+void cleanup_remote();
 struct rs_node *get_node_remote(const char *path, bool fetch_body);
 struct rs_node *get_node_remote_via_parent(const char *path, bool fetch_body);
 

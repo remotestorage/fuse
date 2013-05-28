@@ -174,4 +174,5 @@ void parse_listing(struct rs_node *node) {
     node->data = NULL;
     free(current);
   }
+  free(listing);
 }

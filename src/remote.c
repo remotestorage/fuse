@@ -7,6 +7,10 @@ void init_remote() {
   curl_handle = curl_easy_init();
 }
 
+void cleanup_remote() {
+  curl_easy_cleanup(curl_handle);
+}
+
 size_t write_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
   char s[nmemb * size + 1];
   strncpy(s, ptr, size * nmemb);
@@ -79,6 +83,7 @@ long perform_request(const char *path, struct rs_node* node, bool fetch_body) {
   }
 
   curl_slist_free_all(headers);
+  free(url);
 
   return status;
 }
@@ -127,6 +132,7 @@ struct rs_node *get_node_remote_via_parent(const char *path, bool fetch_body) {
   free_node(parent_node);
   free(name);
   free(dir_name);
+  free(parent_path);
 
   if(dir_path) {
     free(dir_path);

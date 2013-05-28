@@ -23,6 +23,13 @@ static struct fuse_opt rs_opts[] = {
     abort();                                                            \
   }
 
+void cleanup() {
+  cleanup_remote();
+  free(RS_CONFIG->base_url);
+  free(RS_CONFIG->token);
+  free(RS_CONFIG->auth_header);
+}
+
 int main(int argc, char **argv)
 {
   open_log();
@@ -33,6 +40,8 @@ int main(int argc, char **argv)
   strftime(d, 99, "%c", tmp);
 
   log_msg("BEGIN LOG rs-mount %s", d);
+
+  free(d);
   
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   memset(&RS_CONFIG, 0, sizeof(struct rs_config));
@@ -47,6 +56,13 @@ int main(int argc, char **argv)
 
   curl_global_init(CURL_GLOBAL_ALL);
   init_remote();
+
+  atexit(cleanup);
+
+  return fuse_main(args.argc, args.argv, &rs_ops, NULL);
+}
+
+
 
   /* rs_init_cache(); */
 
@@ -75,6 +91,3 @@ int main(int argc, char **argv)
   /*     printf("ENTRY: %s\n", entry->name); */
   /*   } */
   /* } */
- 
-  return fuse_main(args.argc, args.argv, &rs_ops, NULL);
-}
