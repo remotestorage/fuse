@@ -4,23 +4,31 @@
 struct rs_node *make_node(const char *path) {
   struct rs_node *node = xmalloc(sizeof(struct rs_node));
   memset(node, 0, sizeof(struct rs_node));
-  char *tmp = strdup(path);
-  node->name = strdup(basename(tmp));
-  free(tmp);
+  node->name = rs_basename(path);
+  node->is_dir = is_dir(node->name);
   return node;
 }
 
-size_t write_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
-  struct rs_node *node = (struct rs_node*) userdata;
-  off_t prev_size = node->size;
-  node->size += size * nmemb;
-  if(! node->data) {
-    node->data = xmalloc(node->size);
-  } else {
-    node->data = xrealloc(node->data, node->size);
+void free_dir_entry(struct rs_dir_entry *entry) {
+  if(entry == NULL) {
+    return;
   }
-  memcpy(node->data + prev_size, ptr, size * nmemb);
-  return size;
+  struct rs_dir_entry *next = entry->next;
+  free(entry->name);
+  free(entry->rev);
+  free(entry);
+  free_dir_entry(next);
+}
+
+void free_node(struct rs_node *node) {
+  free(node->name);
+  free(node->rev);
+  if(node->is_dir) {
+    free_dir_entry(node->data);
+  } else if(node->data) {
+    free(node->data);
+  }
+  free(node);
 }
 
 TrieNode *trie_root;
@@ -29,25 +37,8 @@ void rs_init_cache() {
   trie_root = new_trie();
 }
 
-char *strip_slash(const char *path) {
-  char *clean_path = path;
-  int len = strlen(path);
-  if(len == 1) {
-    return path;
-  }
-  if(path[len - 1] == '/') {
-    clean_path = strdup(path);
-    clean_path[len - 1] = 0;
-  }
-  return clean_path;
-}
-
 struct rs_node *rs_get_node(const char *path) {
-  char *clean_path = strip_slash(path);
-  struct rs_node *node = (struct rs_node*) trie_search(trie_root, clean_path);
-  if(path != clean_path) {
-    free(clean_path);
-  }
+  struct rs_node *node = (struct rs_node*) trie_search(trie_root, path);
   return node;
 }
 
@@ -59,39 +50,35 @@ void rs_update_dir(const char *parent_path,  char *child_name, char* rev) {
   struct rs_dir_entry *child_entry = xmalloc(sizeof(struct rs_dir_entry));
   child_entry->name = child_name;
   child_entry->rev = rev;
+  child_entry->is_dir = is_dir(child_name);
   if(parent_node) {
-    child_entry->next = parent_node->data;
+    child_entry->next = (struct rs_dir_entry*)parent_node->data;
   }
   rs_set_node(parent_path, child_entry, sizeof(struct rs_dir_entry), rev, true);
 }
 
 void rs_set_node(const char *path, void *data, off_t size, char *rev, bool is_dir) {
-  char *clean_path = strip_slash(path);
+  char *clean_path = adjust_path(path, is_dir);
 
   fprintf(stderr, "rs_set_node # clean_path : %s, rev : %s\n", clean_path, rev);
   struct rs_node *node = make_node(clean_path);
-  char *tmp = strdup(clean_path);
-  char *dname = strdup(dirname(tmp));
-  free(tmp);
+  char *dname = rs_dirname(path);
 
   node->size = size;
   node->data = data;
-  node->rev = strdup(rev);
-  node->is_dir = is_dir;
+  node->rev = rev ? strdup(rev) : strdup("");
+
   trie_insert(trie_root, clean_path, (void*)node);
 
+  if(node->is_dir) {
+    char *tmp = strip_slash(clean_path);
+    trie_insert(trie_root, tmp, (void*)node);
+    free(tmp);
+  }
 
   printf("NODE DATA %x\n", node->data);
 
   fprintf(stderr, "dirname of %s is %s\n", clean_path, dname);
-
-  if(strcmp(dname, "/") != 0) {
-    // append trailing slash to dirname
-    int dnamelen = strlen(dname);
-    dname = realloc(dname, dnamelen + 2);
-    dname[dnamelen++] = '/';
-    dname[dnamelen] = 0;
-  }
 
   log_msg("SET NODE %s", inspect_rs_node(node));
 
@@ -99,6 +86,7 @@ void rs_set_node(const char *path, void *data, off_t size, char *rev, bool is_di
 
   if(strcmp(clean_path, "/") != 0) {
     rs_update_dir(dname, node->name, rev);
+    free(dname);
   }
 
   if(clean_path != path) {
@@ -108,15 +96,29 @@ void rs_set_node(const char *path, void *data, off_t size, char *rev, bool is_di
 
 char *inspect_rs_node(struct rs_node *node) {
   static char s[4096];
-  snprintf(s, sizeof(s),
-           "<Node \"%s\" is_dir=%d size=%d",
-           node->name, node->is_dir, node->size);
-  // work around snprintf bug that made it impossible
-  // to output anything but 0 in the above call, after writing
-  // size=%d (glibc 2.13)
-  int tmplen = strlen(s);
-  snprintf(s + tmplen, sizeof(s) - tmplen,
-           " data=0x%x>", node->data);
+  if(node) {
+    snprintf(s, sizeof(s),
+             "<Node \"%s\" is_dir=%d size=%d",
+             node->name, node->is_dir, node->size);
+    // work around snprintf bug that made it impossible
+    // to output anything but 0 in the above call, after writing
+    // size=%d (glibc 2.13)
+    int tmplen = strlen(s);
+    snprintf(s + tmplen, sizeof(s) - tmplen,
+             " data=0x%x>", node->data);
+  } else {
+    snprintf(s, sizeof(s), "<Node (null)>");
+  }
+  return s;
+}
+
+char *inspect_rs_dir_entry(struct rs_dir_entry *entry) {
+  static char s[4096];
+  if(entry) {
+    snprintf(s, sizeof(s), "<DirEntry \"%s\" next=0x%x>", entry->name, entry->next);
+  } else {
+    snprintf(s, sizeof(s), "<DirEntry (null)>");
+  }
   return s;
 }
 

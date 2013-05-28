@@ -69,6 +69,7 @@ struct rs_dir_entry {
   char *name;
   char *rev;
   struct rs_dir_entry *next;
+  bool is_dir;
 };
 
 struct rs_node {
@@ -84,6 +85,10 @@ struct rs_node {
 void parse_listing(struct rs_node *node);
 void open_log();
 void log_msg(char *format, ...);
+char *adjust_path(const char *path, bool is_dir);
+bool is_dir(const char* path);
+char *rs_dirname(const char *path);
+char *rs_basename(const char *path);
 
 /* node-store operations */
 
@@ -91,6 +96,17 @@ void rs_init_cache();
 struct rs_node *rs_get_node(const char *path);
 void rs_set_node(const char *path, void *data, off_t size, char *rev, bool is_dir);
 char *inspect_rs_node(struct rs_node *node);
+char *inspect_rs_dir_entry(struct rs_dir_entry *entry);
+struct rs_node *make_node(const char *path);
+void free_node(struct rs_node *node);
+
+/* void sync(const char *path); */
+
+/* remote operations */
+
+void init_remote();
+struct rs_node *get_node_remote(const char *path, bool fetch_body);
+struct rs_node *get_node_remote_via_parent(const char *path, bool fetch_body);
 
 /* TRIE */
 

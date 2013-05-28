@@ -37,26 +37,29 @@ int main(int argc, char **argv)
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   memset(&RS_CONFIG, 0, sizeof(struct rs_config));
   fuse_opt_parse(&args, &RS_CONFIG, rs_opts, NULL);
-// 
-//  REQUIRE_OPTION(base_url);
-//  REQUIRE_OPTION(token);
-// 
-//  RS_CONFIG.base_url_len = strlen(RS_CONFIG.base_url);
-//  RS_CONFIG.auth_header = xmalloc(strlen(RS_CONFIG.token) + 23);
-//  sprintf(RS_CONFIG.auth_header, "Authorization: Bearer %s", RS_CONFIG.token);
+
+  REQUIRE_OPTION(base_url);
+  REQUIRE_OPTION(token);
+
+  RS_CONFIG.base_url_len = strlen(RS_CONFIG.base_url);
+  RS_CONFIG.auth_header = xmalloc(strlen(RS_CONFIG.token) + 23);
+  sprintf(RS_CONFIG.auth_header, "Authorization: Bearer %s", RS_CONFIG.token);
 
   curl_global_init(CURL_GLOBAL_ALL);
+  init_remote();
 
-  rs_init_cache();
+  /* rs_init_cache(); */
 
-  rs_set_node("/foo", "bar", 3, "1", false);
-  rs_set_node("/what/the/dir", "", 0, "2", false);
+  /* sync("/"); */
+
+  /* rs_set_node("/foo", "bar", 3, "1", false); */
+  /* rs_set_node("/what/the/dir", "", 0, "2", false); */
 
   /* struct rs_node *foo = rs_get_node("/foo"); */
   /* if(foo){ */
   /*   fprintf(stderr, "foo => %s\n", foo->data); */
   /* } */
-  /* foo = rs_get_node("/what/the"); */
+  /* foo = rs_get_node("/what/the/"); */
   /* if(foo){ */
   /*   printf("0x%x: is_dir: %s\n", foo, foo->is_dir ? "yes" : "no"); */
   /* }else{ */
@@ -68,7 +71,7 @@ int main(int argc, char **argv)
 
   /* if(root->is_dir) { */
   /*   struct rs_dir_entry *entry; */
-  /*   for(entry = root->data; entry != NULL; entry = entry->next) { */
+  /*   for(entry = (struct rs_dir_entry*)root->data; entry != NULL; entry = entry->next) { */
   /*     printf("ENTRY: %s\n", entry->name); */
   /*   } */
   /* } */

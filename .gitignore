@@ -12,3 +12,6 @@ rs-mount
 
 # log files
 *.log
+
+# test directory (this is where I mount my storage)
+test/
