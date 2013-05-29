@@ -9,6 +9,8 @@ rs-mount: $(OBJECTS) $(HEADERS)
 clean:
 	rm -f $(OBJECTS) rs-mount
 
+## secondary targets (for testing stuff, some of this isn't in use right now):
+
 btree: src/bplus.o $(HEADERS)
 	$(CC) src/bplus.o -o $@ $(LDFLAGS)
 

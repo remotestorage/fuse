@@ -89,6 +89,7 @@ char *adjust_path(const char *path, bool is_dir);
 bool is_dir(const char* path);
 char *rs_dirname(const char *path);
 char *rs_basename(const char *path);
+char *strip_slash(const char *path);
 
 /* node-store operations */
 

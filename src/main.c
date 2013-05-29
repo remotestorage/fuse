@@ -25,9 +25,9 @@ static struct fuse_opt rs_opts[] = {
 
 void cleanup() {
   cleanup_remote();
-  free(RS_CONFIG->base_url);
-  free(RS_CONFIG->token);
-  free(RS_CONFIG->auth_header);
+  free(RS_CONFIG.base_url);
+  free(RS_CONFIG.token);
+  free(RS_CONFIG.auth_header);
 }
 
 int main(int argc, char **argv)
