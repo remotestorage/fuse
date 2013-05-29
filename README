@@ -1,0 +1,80 @@
+
+remotestorage-fuse - Mount your remotestorage as Filesystem in User SpacE
+=========================================================================
+
+This is an implementation of the remotestorage protocol that can be used to access
+data stored on a remotestorage compatible storage server via the regular filesystem.
+
+This is still work in progress, the following things are expected to work:
+* Mount a remotestorage, given a base_url and a bearer token granting root-access
+* List directories
+* Read files
+
+The following things do not work yet, but are planned:
+* Write files
+* Delete files
+* In-memory caching of files and / or the directory tree
+* Webfinger discovery (so you don't have to know your base_url)
+* Authorization flow (so you don't have to copy tokens from somewhere)
+
+Usage
+-----
+
+1) Install dependencies:
+
+You need libcurl and libfuse to build remotestorage-fuse. On Debian based systems,
+this should do the trick:
+
+  apt-get install build-essential libfuse-dev libcurl3-gnutls-dev
+
+(if you prefer openssl instead of gnutls, use libcurl3-openssl-dev instead)
+
+2) Build
+
+Simply run
+
+  make
+
+and you should be good to go. There are a few warnings, which you can ignore for now
+(I promise to get rid of them before any stable release). If you see any errors,
+please report them as a github issue.
+
+3) Find out your base URL
+
+To actually mount your storage, you need to know two things: your storage's base URL
+and a bearer token that grants root-access to your storage.
+You can find out the base URL by doing a manual webfinger discovery:
+
+  curl https://<your-provider>/.well-known/host-meta.json?resource=acct:<you>@<your-provider>
+
+and taking the "href" of the "remotestorage" link from the result. For example if you
+have a 5apps account and your name is "someone", you would do:
+
+  curl https://5apps.com/.well-known/host-meta.json?resource=acct:someone@5apps.com
+
+and get the result:
+
+  {"links":[{"href":"https://storage.5apps.com/someone","rel":"remoteStorage","type":"https://www.w3.org/community/rww/wiki/read-write-web-00#simple","properties":{"auth-method":"https://tools.ietf.org/html/draft-ietf-oauth-v2-26#section-4.2","auth-endpoint":"https://5apps.com/rs/oauth/someone"}}]}
+
+In this case the base URL would be "https://storage.5apps.com/someone".
+
+4) Get a bearer token
+
+Getting a bearer token is easy as well. Just visit the remotestorage browser at:
+
+  http://remotestorage-browser.5apps.com/
+
+connect your storage there, then open the JavaScript console and type:
+
+  localStorage['remotestorage_wire:bearerToken']
+
+That will display your token in the console.
+
+5) Mount the storage
+
+Now that you know your base URL and bearer token, you can mount your storage:
+(just replace BASE_URL and TOKEN with the values you figured out above)
+
+  ./rs-mount -o base_url=BASE_URL,token=TOKEN /path/to/mount/point
+
+Now you should be able to see and browse your files.
