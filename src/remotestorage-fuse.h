@@ -48,6 +48,7 @@ int rs_write(const char *path, const char *buf, size_t size, off_t offset,
 int rs_mkdir(const char *path, mode_t mode);
 int rs_rmdir(const char *path);
 int rs_flush(const char *path, struct fuse_file_info *fi);
+int rs_create (const char *path, mode_t mode, struct fuse_file_info *fi);
 
 /* clutter */
 
@@ -109,6 +110,7 @@ void init_remote();
 void cleanup_remote();
 struct rs_node *get_node_remote(const char *path, bool fetch_body);
 struct rs_node *get_node_remote_via_parent(const char *path, bool fetch_body);
+int put_node_remote(const char *path, struct rs_node *node);
 
 /* TRIE */
 

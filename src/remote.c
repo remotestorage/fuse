@@ -11,6 +11,24 @@ void cleanup_remote() {
   curl_easy_cleanup(curl_handle);
 }
 
+struct rs_read_state {
+  struct rs_node *node;
+  off_t offset;
+};
+
+size_t read_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
+  struct rs_read_state *state = (struct rs_read_state*) userdata;
+  int requested = size * nmemb;
+  int remaining = state->node->size - state->offset;
+  int actual = remaining < requested ? remaining : requested;
+  int i;
+  for(i=0;i<actual;i++) {
+    ptr[i] = state->node->data[state->offset + i];
+  }
+  state->offset += actual;
+  return actual;
+}
+
 size_t write_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
   char s[nmemb * size + 1];
   strncpy(s, ptr, size * nmemb);
@@ -28,6 +46,9 @@ size_t write_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
 
 size_t write_header(char *ptr, size_t size, size_t nmemb, void *userdata) {
   size_t bytes = size * nmemb;
+  char tmp[bytes + 1];
+  memcpy(tmp, ptr, bytes);
+  tmp[bytes] = 0;
   if(bytes > 16) {
     char content_length_buf[bytes - 16];
     struct rs_node *node = (struct rs_node*) userdata;
@@ -39,8 +60,17 @@ size_t write_header(char *ptr, size_t size, size_t nmemb, void *userdata) {
   return bytes;
 }
 
-long perform_request(const char *path, struct rs_node* node, bool fetch_body) {
+
+enum rs_method { HEAD, GET, PUT, DELETE };
+
+char *method_names[] = { "HEAD", "GET", "PUT", "DELETE" };
+
+long perform_request(enum rs_method method, const char *path, struct rs_node* node) {
   curl_easy_reset(curl_handle);
+
+  bool fetch_body = method != HEAD;
+
+  curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1);
 
   // set URL
   char *url = xmalloc(RS_CONFIG.base_url_len + strlen(path) + 1);
@@ -49,20 +79,42 @@ long perform_request(const char *path, struct rs_node* node, bool fetch_body) {
   // set headers
   struct curl_slist *headers = NULL;
   headers = curl_slist_append(headers, RS_CONFIG.auth_header);
+
+  if(method == PUT) {
+    headers = curl_slist_append(headers, "Content-Type: application/octet-stream; charset=binary");
+  }
+
   curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headers);
 
-  log_msg("[remote] %s %s", fetch_body ? "GET" : "HEAD", path);
+  log_msg("[remote] %s %s", method_names[method], path);
 
-  if(fetch_body) {
+  struct rs_read_state read_state;
+
+  switch(method) {
+  case GET:
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_body);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, node);
-  } else {
+    break;
+  case HEAD:
     curl_easy_setopt(curl_handle, CURLOPT_NOBODY, 1);
 
     if(! node->is_dir) {
       curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, write_header);
       curl_easy_setopt(curl_handle, CURLOPT_HEADERDATA, node);
     }
+    break;
+  case PUT:
+    read_state.node = node;
+    read_state.offset = 0;
+    curl_easy_setopt(curl_handle, CURLOPT_UPLOAD, 1);
+    curl_easy_setopt(curl_handle, CURLOPT_READFUNCTION, read_body);
+    curl_easy_setopt(curl_handle, CURLOPT_READDATA, &read_state);
+    curl_easy_setopt(curl_handle, CURLOPT_INFILESIZE, node->size);
+    log_msg("PUTting %d bytes", node->size);
+    break;
+  case DELETE:
+    log_msg("DELETE NOT IMPLEMENTED!!!");
+    return -1;
   }
 
   static char errorbuf[CURL_ERROR_SIZE];
@@ -92,7 +144,7 @@ struct rs_node *get_node_remote(const char *path, bool fetch_body) {
 
   struct rs_node *node = make_node(path);
 
-  long status = perform_request(path, node, fetch_body);
+  long status = perform_request(fetch_body ? GET : HEAD, path, node);
   if(status > 400) {
     free_node(node);
     return NULL;
@@ -139,4 +191,9 @@ struct rs_node *get_node_remote_via_parent(const char *path, bool fetch_body) {
   }
 
   return node;
+}
+
+int put_node_remote(const char *path, struct rs_node *node) {
+  long status = perform_request(PUT, path, node);
+  return (status == 200 || status == 201) ? 0 : status;
 }

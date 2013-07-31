@@ -24,7 +24,7 @@ void free_node(struct rs_node *node) {
   free(node->name);
   free(node->rev);
   if(node->is_dir) {
-    free_dir_entry(node->data);
+    free_dir_entry((struct rs_dir_entry*)node->data);
   } else if(node->data) {
     free(node->data);
   }

@@ -130,6 +130,8 @@ void parse_listing(struct rs_node *node) {
         state = sOBJECT;
       } else {
         fprintf(stderr, "Faulty directory listing: %s\n", listing);
+        node->data = NULL;
+        free(current);
         return;
       }
       break;

@@ -10,7 +10,8 @@ static struct fuse_operations rs_ops = {
   .truncate = rs_truncate,
   .mkdir = rs_mkdir,
   .rmdir = rs_rmdir,
-  .flush = rs_flush
+  .flush = rs_flush,
+  .create = rs_create
 };
 
 static struct fuse_opt rs_opts[] = {
