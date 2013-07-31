@@ -9,9 +9,10 @@ This is still work in progress, the following things are expected to work:
 * Mount a remotestorage, given a base_url and a bearer token granting root-access
 * List directories
 * Read files
+* Write files (WARNING: destroys MIME types. All MIME types for files edited via the fuse plugin will be set to "application/octet-stream; charset=binary")
 
 The following things do not work yet, but are planned:
-* Write files
+* MIME types
 * Delete files
 * In-memory caching of files and / or the directory tree
 * Webfinger discovery (so you don't have to know your base_url)
