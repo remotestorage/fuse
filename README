@@ -10,13 +10,18 @@ This is still work in progress, the following things are expected to work:
 * List directories
 * Read files
 * Write files (WARNING: destroys MIME types. All MIME types for files edited via the fuse plugin will be set to "application/octet-stream; charset=binary")
+* Delete files
 
 The following things do not work yet, but are planned:
 * MIME types
-* Delete files
 * In-memory caching of files and / or the directory tree
 * Webfinger discovery (so you don't have to know your base_url)
 * Authorization flow (so you don't have to copy tokens from somewhere)
+
+The directory handling is a lot different from regular filesystems:
+* mkdir() will always succeed, but not actually create empty directories
+* write()ing to a file will implicitly create the file and any parent directories.
+* rmdir() will also always succeed.
 
 Usage
 -----
