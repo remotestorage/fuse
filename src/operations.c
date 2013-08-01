@@ -163,6 +163,10 @@ int rs_flush(const char *path, struct fuse_file_info *fi) {
   return 0;
 }
 
-int rs_create (const char *path, mode_t mode, struct fuse_file_info *fi) {
+int rs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
   return rs_truncate(path, 0);
+}
+
+int rs_unlink(const char *path) {
+  return delete_node_remote(path);
 }

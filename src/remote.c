@@ -113,8 +113,8 @@ long perform_request(enum rs_method method, const char *path, struct rs_node* no
     log_msg("PUTting %d bytes", node->size);
     break;
   case DELETE:
-    log_msg("DELETE NOT IMPLEMENTED!!!");
-    return -1;
+    curl_easy_setopt(curl_handle, CURLOPT_CUSTOMREQUEST, "DELETE");
+    break;
   }
 
   static char errorbuf[CURL_ERROR_SIZE];
@@ -196,4 +196,9 @@ struct rs_node *get_node_remote_via_parent(const char *path, bool fetch_body) {
 int put_node_remote(const char *path, struct rs_node *node) {
   long status = perform_request(PUT, path, node);
   return (status == 200 || status == 201) ? 0 : status;
+}
+
+int delete_node_remote(const char *path) {
+  long status = perform_request(DELETE, path, NULL);
+  return status == 200 ? 0 : status;
 }

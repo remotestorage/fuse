@@ -11,7 +11,8 @@ static struct fuse_operations rs_ops = {
   .mkdir = rs_mkdir,
   .rmdir = rs_rmdir,
   .flush = rs_flush,
-  .create = rs_create
+  .create = rs_create,
+  .unlink = rs_unlink
 };
 
 static struct fuse_opt rs_opts[] = {
