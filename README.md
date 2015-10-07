@@ -90,11 +90,11 @@ In this case the base URL would be `https://storage.5apps.com/fkooman`.
 
 Getting a bearer token is easy as well. Just visit the remoteStorage browser at:
 
-    http://remotestorage-browser.5apps.com/
+    https://remotestorage-browser.5apps.com/
 
 connect your storage there, then open the JavaScript console and type:
 
-    localStorage['remotestorage_wire:bearerToken']
+	JSON.parse(localStorage['remotestorage:wireclient']).token
 
 That will display your token in the console.
 
@@ -105,4 +105,12 @@ Now that you know your base URL and bearer token, you can mount your storage:
 
     $ sudo ./rs-mount -o base_url=BASE_URL,token=TOKEN /path/to/mount/point
 
-Now you should be able to see and browse your files.
+For example:
+
+    $ sudo ./rs-mount -o base_url=https://storage.5apps.com/fkooman,token=8bb19ded9e0ed986c6a92494f7c8cf0d /mnt
+
+Now you should be able to see and browse your files:
+
+    [fkooman@noname rs-fuse]$ sudo ls /mnt
+    @context  foo  items  rss  sockethub
+    [fkooman@noname rs-fuse]$ 
