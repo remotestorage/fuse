@@ -94,7 +94,7 @@ Getting a bearer token is easy as well. Just visit the remoteStorage browser at:
 
 connect your storage there, then open the JavaScript console and type:
 
-	JSON.parse(localStorage['remotestorage:wireclient']).token
+    remoteStorage.remote.token
 
 That will display your token in the console.
 
